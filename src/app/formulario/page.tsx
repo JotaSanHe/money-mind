@@ -1,7 +1,11 @@
-export default function Formulario() {
+import MovementForm from '@/components/MovementForm';
+import TablaMovimientos from '@/components/TablaMovimientos';
+
+export default function FormularioPage() {
   return (
-    <div className="p-6 text-lg font-semibold">
-      Página de Formulario
-    </div>
+    <main className="py-8 px-4">
+      <MovementForm />
+      <TablaMovimientos />
+    </main>
   );
 }

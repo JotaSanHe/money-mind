@@ -146,8 +146,13 @@ export default function HomePage() {
   return (
     <main className="min-h-screen bg-gray-50 text-gray-900 p-8">
       <section className="max-w-6xl mx-auto">
+        {/*
+        Utilizar el username de la sesión para personalizar el saludo.
+        A implementar
+        */}
         <h1 className="text-4xl font-bold mb-10 text-blue-700">
-          Bienvenido, Jota 👋
+          
+          Bienvenido, Jota
         </h1>
 
         <div className="grid gap-6 grid-cols-1 md:grid-cols-3 mb-10">
