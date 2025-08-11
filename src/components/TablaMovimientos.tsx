@@ -1,6 +1,8 @@
-// components/TablaMovimientos.tsx
+'use client';
+import { useState, useMemo, useEffect } from 'react';
 
 type Movimiento = {
+  _id?: string;
   tipo: 'ingreso' | 'gasto';
   categoria: string;
   descripcion: string;
@@ -9,61 +11,215 @@ type Movimiento = {
   esFijo: boolean;
 };
 
-const movimientosFicticios: Movimiento[] = [
-  {
-    tipo: 'gasto',
-    categoria: 'Comida',
-    descripcion: 'Cena con amigos',
-    monto: 32.5,
-    fecha: '2025-07-01',
-    esFijo: false,
-  },
-  {
-    tipo: 'ingreso',
-    categoria: 'Ingreso',
-    descripcion: 'Nómina',
-    monto: 1200,
-    fecha: '2025-07-01',
-    esFijo: false,
-  },
-  {
-    tipo: 'gasto',
-    categoria: 'Vivienda',
-    descripcion: 'Alquiler',
-    monto: 550,
-    fecha: '2025-07-01',
-    esFijo: true,
-  },
-];
-
 export default function TablaMovimientos() {
+  const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
+  const [sortBy, setSortBy] = useState<keyof Movimiento>('fecha');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  const currentMonth = new Date().getMonth() + 1;
+  const currentYear = new Date().getFullYear();
+
+  useEffect(() => {
+    fetchMovimientos();
+  }, []);
+
+  async function fetchMovimientos() {
+    try {
+      const res = await fetch('/api/movimientos');
+      const data: Movimiento[] = await res.json();
+
+      // Filtrar: mes actual + fijos del mes anterior
+      const filtrados = data.filter((mov) => {
+        const fecha = new Date(mov.fecha);
+        const mes = fecha.getMonth() + 1;
+        const anio = fecha.getFullYear();
+
+        const esMesActual = mes === currentMonth && anio === currentYear;
+        const esFijoMesAnterior =
+          mov.esFijo &&
+          ((mes === currentMonth - 1 && anio === currentYear) ||
+            (currentMonth === 1 && mes === 12 && anio === currentYear - 1));
+
+        return esMesActual || esFijoMesAnterior;
+      });
+
+      setMovimientos(filtrados);
+    } catch (error) {
+      console.error('Error al obtener movimientos:', error);
+    }
+  }
+
+  const sortedMovimientos = useMemo(() => {
+    return [...movimientos].sort((a, b) => {
+      let valA = a[sortBy];
+      let valB = b[sortBy];
+
+      if (sortBy === 'monto') {
+        return sortDir === 'asc'
+          ? (valA as number) - (valB as number)
+          : (valB as number) - (valA as number);
+      }
+
+      if (sortBy === 'fecha') {
+        return sortDir === 'asc'
+          ? new Date(valA as string).getTime() - new Date(valB as string).getTime()
+          : new Date(valB as string).getTime() - new Date(valA as string).getTime();
+      }
+
+      return sortDir === 'asc'
+        ? (valA as string).toString().localeCompare(valB as string)
+        : (valB as string).toString().localeCompare(valA as string);
+    });
+  }, [movimientos, sortBy, sortDir]);
+
+  const paginated = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return sortedMovimientos.slice(start, start + itemsPerPage);
+  }, [sortedMovimientos, currentPage]);
+
+  const toggleSort = (column: keyof Movimiento) => {
+    if (column === sortBy) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(column);
+      setSortDir('asc');
+    }
+    setCurrentPage(1);
+  };
+
+  const onDelete = async (id?: string) => {
+    if (!id) return;
+    if (!confirm('¿Eliminar este movimiento?')) return;
+
+    try {
+      await fetch(`/api/movimientos/${id}`, { method: 'DELETE' });
+      fetchMovimientos();
+    } catch (error) {
+      console.error('Error al eliminar movimiento:', error);
+    }
+  };
+
+  const onValidate = async (mov: Movimiento) => {
+    if (!mov._id) return;
+
+    try {
+      // 1️⃣ Quitar fijo al movimiento anterior
+      await fetch(`/api/movimientos/${mov._id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ esFijo: false })
+      });
+
+      // 2️⃣ Crear uno nuevo con fecha actual y fijo
+      const nuevoMov = {
+        ...mov,
+        fecha: new Date().toISOString().split('T')[0],
+        esFijo: true
+      };
+      delete nuevoMov._id;
+
+      await fetch(`/api/movimientos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(nuevoMov)
+      });
+
+      fetchMovimientos();
+    } catch (error) {
+      console.error('Error al validar movimiento fijo:', error);
+    }
+  };
+
+  const totalPages = Math.ceil(movimientos.length / itemsPerPage);
+
   return (
-    <div className="mt-12 overflow-x-auto">
-      <h2 className="text-lg font-semibold mb-4 text-blue-700">Movimientos recientes</h2>
-      <table className="min-w-full border border-gray-300 rounded-xl overflow-hidden text-sm">
-        <thead className="bg-blue-100 text-gray-800">
-          <tr>
-            <th className="px-3 py-2 text-left font-semibold">Tipo</th>
-            <th className="px-3 py-2 text-left font-semibold">Categoría</th>
-            <th className="px-3 py-2 text-left font-semibold">Descripción</th>
-            <th className="px-3 py-2 text-left font-semibold">Monto</th>
-            <th className="px-3 py-2 text-left font-semibold">Fecha</th>
-            <th className="px-3 py-2 text-left font-semibold">Fijo</th>
-          </tr>
-        </thead>
-        <tbody>
-          {movimientosFicticios.map((mov, idx) => (
-            <tr key={idx} className="odd:bg-white even:bg-gray-50 border-t border-gray-200">
-              <td className="px-3 py-2 capitalize text-blue-600">{mov.tipo}</td>
-              <td className="px-3 py-2">{mov.categoria}</td>
-              <td className="px-3 py-2 text-gray-700">{mov.descripcion}</td>
-              <td className="px-3 py-2 font-semibold">{mov.monto.toFixed(2)} €</td>
-              <td className="px-3 py-2">{mov.fecha}</td>
-              <td className="px-3 py-2 text-center">{mov.esFijo ? '✔️' : '—'}</td>
+    <div className="mt-8 text-sm">
+      <h2 className="text-base font-semibold mb-4 text-blue-700">Movimientos</h2>
+
+      <div className="overflow-x-auto border rounded-lg">
+        <table className="w-full border-collapse text-sm">
+          <thead className="bg-blue-100">
+            <tr>
+              {['fecha', 'categoria', 'descripcion', 'monto'].map((key) => (
+                <th
+                  key={key}
+                  className="px-2 py-2 cursor-pointer text-left whitespace-nowrap"
+                  onClick={() => toggleSort(key as keyof Movimiento)}
+                >
+                  {key.charAt(0).toUpperCase() + key.slice(1)}{' '}
+                  {sortBy === key && (sortDir === 'asc' ? '▲' : '▼')}
+                </th>
+              ))}
+              <th className="px-2 py-2">Acciones</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {paginated.map((mov) => {
+              const fecha = new Date(mov.fecha);
+              const esMesAnterior =
+                (fecha.getMonth() + 1 !== currentMonth || fecha.getFullYear() !== currentYear) &&
+                mov.esFijo;
+
+              return (
+                <tr
+                  key={mov._id}
+                  className={`border-t ${esMesAnterior ? 'bg-yellow-50' : 'bg-white'} hover:bg-gray-100`}
+                >
+                  <td className="px-2 py-2">{fecha.toLocaleDateString()}</td>
+                  <td className="px-2 py-2">{mov.categoria}</td>
+                  <td className="px-2 py-2">{mov.descripcion}</td>
+                  <td className="px-2 py-2 font-semibold">
+                    {mov.monto.toFixed(2)} €
+                  </td>
+                  <td className="px-2 py-2 space-x-1">
+                    {esMesAnterior && (
+                      <button
+                        className="text-green-600 hover:underline"
+                        onClick={() => onValidate(mov)}
+                      >
+                        ✓ Validar
+                      </button>
+                    )}
+                    <button
+                      className="text-red-500 hover:underline"
+                      onClick={() => onDelete(mov._id)}
+                    >
+                      🗑 Eliminar
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+
+        {/* Paginación */}
+        <div className="flex justify-between items-center mt-2 px-2 py-2 text-xs text-gray-700">
+          <div>
+            Mostrando {(currentPage - 1) * itemsPerPage + 1} a{' '}
+            {Math.min(currentPage * itemsPerPage, movimientos.length)} de{' '}
+            {movimientos.length}
+          </div>
+          <div className="space-x-2">
+            <button
+              className="px-2 py-1 border rounded disabled:opacity-50"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              ◀ Anterior
+            </button>
+            <button
+              className="px-2 py-1 border rounded disabled:opacity-50"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Siguiente ▶
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

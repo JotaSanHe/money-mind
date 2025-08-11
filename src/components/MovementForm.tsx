@@ -4,19 +4,64 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 
-export default function MovementForm() {
-  const [type, setType] = useState('gasto');
+type Props = {
+  onAdded?: () => void; // para refrescar la tabla
+};
 
-  const handleSubmit = (e: React.FormEvent) => {
+export default function MovementForm({ onAdded }: Props) {
+  const [type, setType] = useState('gasto');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log('Formulario enviado');
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+
+    const nuevoMovimiento = {
+      tipo: type,
+      categoria: formData.get('category') as string,
+      descripcion: formData.get('description') as string,
+      monto: parseFloat(formData.get('amount') as string),
+      fecha: formData.get('date') as string,
+      esFijo: formData.get('es_fijo') === 'on'
+    };
+
+    try {
+      setLoading(true);
+      const res = await fetch('/api/movimientos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(nuevoMovimiento)
+      });
+
+      if (!res.ok) throw new Error('Error al guardar el movimiento');
+
+      form.reset();
+      setType('gasto');
+
+      if (onAdded) onAdded();
+    } catch (error) {
+      console.error(error);
+      alert('No se pudo guardar el movimiento.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-xl mx-auto space-y-4 p-6 bg-white shadow rounded-xl">
+    <form
+      onSubmit={handleSubmit}
+      className="max-w-xl mx-auto space-y-4 p-6 bg-white shadow rounded-xl"
+    >
       <h2 className="text-xl font-semibold mb-4">Agregar Movimiento</h2>
 
       {/* Tipo */}
@@ -36,7 +81,7 @@ export default function MovementForm() {
       {/* Categoría */}
       <div>
         <Label htmlFor="category">Categoría</Label>
-        <Select name="category">
+        <Select name="category" required>
           <SelectTrigger>
             <SelectValue placeholder="Seleccionar categoría" />
           </SelectTrigger>
@@ -64,13 +109,24 @@ export default function MovementForm() {
       {/* Descripción */}
       <div>
         <Label htmlFor="description">Descripción</Label>
-        <Input name="description" placeholder="Descripción del movimiento" required />
+        <Input
+          name="description"
+          placeholder="Descripción del movimiento"
+          required
+        />
       </div>
 
       {/* Monto */}
       <div>
         <Label htmlFor="amount">Monto (€)</Label>
-        <Input name="amount" type="number" step="0.01" min="0" placeholder="0.00" required />
+        <Input
+          name="amount"
+          type="number"
+          step="0.01"
+          min="0"
+          placeholder="0.00"
+          required
+        />
       </div>
 
       {/* Fecha */}
@@ -87,8 +143,8 @@ export default function MovementForm() {
         </div>
       )}
 
-      <Button type="submit" className="w-full">
-        ➕ Agregar movimiento
+      <Button type="submit" className="w-full" disabled={loading}>
+        {loading ? 'Guardando...' : '➕ Agregar movimiento'}
       </Button>
     </form>
   );

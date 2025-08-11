@@ -1,8 +1,18 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 export default function Header() {
+  const pathname = usePathname();
+  const hideOn = ['/login', '/register']; 
+
+  // Si la ruta es login o register
+  if (hideOn.includes(pathname)) {
+    return null;
+  }
+
+  // De lo contrario, mostramos la nav-bar
   return (
     <header className="bg-slate-900 text-white py-4 shadow-md">
       <nav className="max-w-6xl mx-auto px-4 flex justify-between items-center">

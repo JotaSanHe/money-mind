@@ -1,7 +1,9 @@
-export default function Alarmas() {
+import AlarmaConfig from '@/components/AlarmaConfig';
+
+export default function AlarmasPage() {
   return (
-    <div className="p-6 text-lg font-semibold">
-      Página de Alarmas
-    </div>
+    <main className="py-8 px-4">
+      <AlarmaConfig />
+    </main>
   );
 }
