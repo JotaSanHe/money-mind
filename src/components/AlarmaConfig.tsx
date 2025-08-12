@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent } from '@/components/ui/card';
 
 type Alarma = {
+  _id?: string;
   categoria: string;
   importe: number;
 };
@@ -30,10 +31,24 @@ export default function AlarmaConfig() {
   const [categoria, setCategoria] = useState('');
   const [importe, setImporte] = useState('');
 
+  const fetchAlarmas = async () => {
+    try {
+      const res = await fetch('/api/alarmas');
+      const data = await res.json();
+      setAlarmas(data);
+    } catch (error) {
+      console.error('Error al cargar las alarmas:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchAlarmas();
+  }, []);
+
   const categoriasConAlarma = alarmas.map((a) => a.categoria);
   const categoriasRestantes = categoriasDisponibles.filter((c) => !categoriasConAlarma.includes(c));
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!categoria || !importe) return;
 
@@ -42,14 +57,33 @@ export default function AlarmaConfig() {
       importe: parseFloat(importe),
     };
 
-    setAlarmas((prev) => [...prev, nuevaAlarma]);
-    setCategoria('');
-    setImporte('');
+    try {
+      await fetch('/api/alarmas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(nuevaAlarma),
+      });
+      fetchAlarmas();
+      setCategoria('');
+      setImporte('');
+    } catch (error) {
+      console.error('Error al guardar la alarma:', error);
+    }
   };
 
-  const eliminarAlarma = (cat: string) => {
-    if (confirm(`¿Eliminar la alarma para ${cat}?`)) {
-      setAlarmas((prev) => prev.filter((a) => a.categoria !== cat));
+  const eliminarAlarma = async (id?: string) => {
+    if (!id) return;
+    if (confirm(`¿Eliminar la alarma?`)) {
+      try {
+        await fetch('/api/alarmas', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id }),
+        });
+        fetchAlarmas();
+      } catch (error) {
+        console.error('Error al eliminar la alarma:', error);
+      }
     }
   };
 
@@ -57,7 +91,6 @@ export default function AlarmaConfig() {
     <div className="max-w-2xl mx-auto py-6 px-4">
       <h1 className="text-xl font-bold mb-4">Configuración de Alarmas</h1>
 
-      {/* Formulario */}
       <Card className="mb-6">
         <CardContent className="p-6 space-y-4">
           <h2 className="text-lg font-semibold">Nueva Alarma</h2>
@@ -81,7 +114,6 @@ export default function AlarmaConfig() {
                 </SelectContent>
               </Select>
             </div>
-
             <div>
               <Label>Importe Límite (€)</Label>
               <Input
@@ -93,7 +125,6 @@ export default function AlarmaConfig() {
                 required
               />
             </div>
-
             <Button type="submit" className="w-full">
               ➕ Guardar Alarma
             </Button>
@@ -101,10 +132,8 @@ export default function AlarmaConfig() {
         </CardContent>
       </Card>
 
-      {/* Lista de alarmas */}
       <div className="space-y-2">
         <h3 className="text-base font-semibold mb-2">Tus Alarmas</h3>
-
         {alarmas.length === 0 ? (
           <p className="text-gray-500">No hay alarmas configuradas.</p>
         ) : (
@@ -119,7 +148,7 @@ export default function AlarmaConfig() {
                 </span>
                 <button
                   className="text-red-600 hover:underline text-sm"
-                  onClick={() => eliminarAlarma(alarma.categoria)}
+                  onClick={() => eliminarAlarma(alarma._id)}
                 >
                   Eliminar
                 </button>

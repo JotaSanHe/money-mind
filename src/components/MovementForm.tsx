@@ -14,11 +14,12 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 
 type Props = {
-  onAdded?: () => void; // para refrescar la tabla
+  onAdded?: () => void;
 };
 
 export default function MovementForm({ onAdded }: Props) {
   const [type, setType] = useState('gasto');
+  const [category, setCategory] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -28,7 +29,7 @@ export default function MovementForm({ onAdded }: Props) {
 
     const nuevoMovimiento = {
       tipo: type,
-      categoria: formData.get('category') as string,
+      categoria: category,
       descripcion: formData.get('description') as string,
       monto: parseFloat(formData.get('amount') as string),
       fecha: formData.get('date') as string,
@@ -47,7 +48,7 @@ export default function MovementForm({ onAdded }: Props) {
 
       form.reset();
       setType('gasto');
-
+      setCategory('');
       if (onAdded) onAdded();
     } catch (error) {
       console.error(error);
@@ -81,7 +82,7 @@ export default function MovementForm({ onAdded }: Props) {
       {/* Categoría */}
       <div>
         <Label htmlFor="category">Categoría</Label>
-        <Select name="category" required>
+        <Select name="category" value={category} onValueChange={setCategory} required>
           <SelectTrigger>
             <SelectValue placeholder="Seleccionar categoría" />
           </SelectTrigger>

@@ -1,5 +1,6 @@
 'use client';
-import { useState, useMemo, useEffect } from 'react';
+
+import { useState, useMemo } from 'react';
 
 type Movimiento = {
   _id?: string;
@@ -11,45 +12,18 @@ type Movimiento = {
   esFijo: boolean;
 };
 
-export default function TablaMovimientos() {
-  const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
+interface TablaMovimientosProps {
+  movimientos: Movimiento[];
+  refetch: () => void;
+}
+
+export default function TablaMovimientos({ movimientos, refetch }: TablaMovimientosProps) {
   const [sortBy, setSortBy] = useState<keyof Movimiento>('fecha');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
-
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
-
-  useEffect(() => {
-    fetchMovimientos();
-  }, []);
-
-  async function fetchMovimientos() {
-    try {
-      const res = await fetch('/api/movimientos');
-      const data: Movimiento[] = await res.json();
-
-      // Filtrar: mes actual + fijos del mes anterior
-      const filtrados = data.filter((mov) => {
-        const fecha = new Date(mov.fecha);
-        const mes = fecha.getMonth() + 1;
-        const anio = fecha.getFullYear();
-
-        const esMesActual = mes === currentMonth && anio === currentYear;
-        const esFijoMesAnterior =
-          mov.esFijo &&
-          ((mes === currentMonth - 1 && anio === currentYear) ||
-            (currentMonth === 1 && mes === 12 && anio === currentYear - 1));
-
-        return esMesActual || esFijoMesAnterior;
-      });
-
-      setMovimientos(filtrados);
-    } catch (error) {
-      console.error('Error al obtener movimientos:', error);
-    }
-  }
 
   const sortedMovimientos = useMemo(() => {
     return [...movimientos].sort((a, b) => {
@@ -95,7 +69,7 @@ export default function TablaMovimientos() {
 
     try {
       await fetch(`/api/movimientos/${id}`, { method: 'DELETE' });
-      fetchMovimientos();
+      refetch();
     } catch (error) {
       console.error('Error al eliminar movimiento:', error);
     }
@@ -105,14 +79,12 @@ export default function TablaMovimientos() {
     if (!mov._id) return;
 
     try {
-      // 1️⃣ Quitar fijo al movimiento anterior
       await fetch(`/api/movimientos/${mov._id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ esFijo: false })
       });
 
-      // 2️⃣ Crear uno nuevo con fecha actual y fijo
       const nuevoMov = {
         ...mov,
         fecha: new Date().toISOString().split('T')[0],
@@ -126,7 +98,7 @@ export default function TablaMovimientos() {
         body: JSON.stringify(nuevoMov)
       });
 
-      fetchMovimientos();
+      refetch();
     } catch (error) {
       console.error('Error al validar movimiento fijo:', error);
     }
@@ -137,7 +109,6 @@ export default function TablaMovimientos() {
   return (
     <div className="mt-8 text-sm">
       <h2 className="text-base font-semibold mb-4 text-blue-700">Movimientos</h2>
-
       <div className="overflow-x-auto border rounded-lg">
         <table className="w-full border-collapse text-sm">
           <thead className="bg-blue-100">
@@ -194,8 +165,6 @@ export default function TablaMovimientos() {
             })}
           </tbody>
         </table>
-
-        {/* Paginación */}
         <div className="flex justify-between items-center mt-2 px-2 py-2 text-xs text-gray-700">
           <div>
             Mostrando {(currentPage - 1) * itemsPerPage + 1} a{' '}

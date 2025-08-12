@@ -1,26 +1,39 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import MovementForm from '@/components/MovementForm';
 import TablaMovimientos from '@/components/TablaMovimientos';
+import AlarmaDisplay from '@/components/AlarmDisplay';
+import { muestraAlarmas } from '@/lib/alarmas';
+import { Movimiento } from '@/types/movimientos';
 
 export default function FormularioPage() {
-  // Usamos el estado 'key' para forzar la recarga de la tabla.
-  const [key, setKey] = useState(0);
+  const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
+  const { alarmas } = muestraAlarmas();
+
+  const fetchMovimientos = async () => {
+    try {
+      const res = await fetch('/api/movimientos');
+      const data: Movimiento[] = await res.json();
+      setMovimientos(data);
+    } catch (err) {
+      console.error('Error cargando movimientos:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchMovimientos();
+  }, []);
 
   const handleMovementAdded = () => {
-    // Al añadir un movimiento, incrementamos el 'key'.
-    // Esto hace que React monte una nueva instancia de TablaMovimientos.
-    setKey((prevKey) => prevKey + 1);
+    fetchMovimientos();
   };
 
   return (
     <main className="py-8 px-4 space-y-8">
-      {/* El formulario llama a 'handleMovementAdded' al enviar. */}
       <MovementForm onAdded={handleMovementAdded} />
-
-      {/* La tabla se recargará automáticamente cada vez que 'key' cambie. */}
-      <TablaMovimientos key={key} />
+      <AlarmaDisplay movimientos={movimientos} alarmas={alarmas} />
+      <TablaMovimientos movimientos={movimientos} refetch={handleMovementAdded} />
     </main>
   );
 }
